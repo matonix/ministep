@@ -4,9 +4,12 @@ module Data.SSC.Types where
 
 import           RIO
 
+data SSC = SSC 
+  { header :: Header
+  , body :: Body
+  } deriving Show
+
 type Body = Vector NoteData
-data SSC = SSC Header Body
-  deriving Show
 
 type Beat = Float
 type Sec = Float
