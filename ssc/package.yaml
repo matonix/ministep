@@ -1,15 +1,12 @@
-library:
-  source-dirs: src
-tests:
-  ssc-test:
-    source-dirs: test
-    main: Spec.hs
-    dependencies:
-    - ssc
-    - hspec
+name: ssc
 copyright: Haruki Yokoyama
 category: Web
 maintainer: automatonix@gmail.com
+version: 0.1.0
+author: maton
+github: matonix/ssc
+license: BSD3
+
 ghc-options:
 - -Wall
 - -threaded
@@ -22,11 +19,18 @@ dependencies:
 - aeson
 - rio
 - base >=4.7 && <5
-name: ssc
-version: 0.1.0
-author: maton
-github: matonix/ssc
-license: BSD3
+
+library:
+  source-dirs: src
+
+tests:
+  ssc-test:
+    source-dirs: test
+    main: Spec.hs
+    dependencies:
+    - ssc
+    - hspec
+
 executables:
   ssc:
     source-dirs: app
