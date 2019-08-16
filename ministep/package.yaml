@@ -1,0 +1,37 @@
+library:
+  source-dirs: src
+tests:
+  ministep-test:
+    source-dirs: test
+    main: Spec.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - ministep
+copyright: Haruki Yokoyama
+maintainer: automatonix@gmail.com
+dependencies:
+- base >= 4.7 && < 5
+- array
+- mtl
+name: ministep
+version: 0.1.0.0
+extra-source-files:
+- README.md
+- ChangeLog.md
+author: maton
+github: matonix/ministep
+license: BSD3
+executables:
+  ministep-exe:
+    source-dirs: app
+    main: Main.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - ministep
+description: Please see the README on GitHub at <https://github.com/matonix/ministep#readme>
