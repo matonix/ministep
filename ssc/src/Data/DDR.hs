@@ -1,7 +1,7 @@
 module Data.DDR where
 
 import           Data.Ratio
-import           Data.SSC.Types
+import qualified Data.SSC.Types as S
 import           RIO
 import qualified RIO.Vector                    as V
 
@@ -34,20 +34,22 @@ data Event = Event
 
 type MilliSecond = Float
 
-data Arrow = Arrow
-  { left :: Maybe NoteType
-  , down :: Maybe NoteType
-  , up :: Maybe NoteType
-  , right :: Maybe NoteType
+data Panel a = Single
+  { left :: a
+  , down :: a
+  , up :: a
+  , right :: a
   } deriving Show
+
+type Arrow = Panel (Maybe NoteType)
 
 data NoteType = Normal | Freeze | Release | Shock
   deriving Show
 
-fromSSC :: SSC -> Vector DDR
-fromSSC = V.map notesToDDR . V.mapMaybe notes . body
+fromSSC :: S.SSC -> Vector DDR
+fromSSC = V.map notesToDDR . V.mapMaybe S.notes . S.body
  where
-  notesToDDR :: Notes -> DDR
+  notesToDDR :: S.Notes -> DDR
   notesToDDR = consAbsBeat . V.map measureToEvents
    where
     consAbsBeat :: Vector (Vector (Maybe Event)) -> DDR
@@ -57,14 +59,14 @@ fromSSC = V.map notesToDDR . V.mapMaybe notes . body
             Note (AbsBeat measure' denominator' numerator') event'
 
   -- Now we ignore BPM change and stop, we see arrows only
-  measureToEvents :: Measure -> Vector (Maybe Event)
+  measureToEvents :: S.Measure -> Vector (Maybe Event)
   measureToEvents = V.map $ fmap arrowToEvent . fromBeatColumn
    where
     arrowToEvent a = Event (Just a) Nothing Nothing
 
-  fromBeatColumn :: BeatColumn -> Maybe Arrow
+  fromBeatColumn :: S.BeatColumn -> Maybe Arrow
   fromBeatColumn bc
-    | V.length bc == 4 = maybeArrow $ Arrow
+    | V.length bc == 4 = maybeArrow $ Single
       { left  = fromNoteValue =<< bc V.!? 0
       , down  = fromNoteValue =<< bc V.!? 1
       , up    = fromNoteValue =<< bc V.!? 2
@@ -72,19 +74,19 @@ fromSSC = V.map notesToDDR . V.mapMaybe notes . body
       }
     | otherwise = Nothing
    where
-    maybeArrow (Arrow Nothing Nothing Nothing Nothing) = Nothing
+    maybeArrow (Single Nothing Nothing Nothing Nothing) = Nothing
     maybeArrow arr = Just arr
 
-  fromNoteValue :: NoteValue -> Maybe NoteType
-  fromNoteValue None     = Nothing
-  fromNoteValue Tap      = Just Normal
-  fromNoteValue HoldHead = Just Freeze
-  fromNoteValue Tail     = Just Release
-  fromNoteValue RollHead = Nothing
-  fromNoteValue Mine     = Just Shock
-  fromNoteValue AutoKey  = Nothing
-  fromNoteValue Lift     = Nothing
-  fromNoteValue Fake     = Nothing
+  fromNoteValue :: S.NoteValue -> Maybe NoteType
+  fromNoteValue S.None     = Nothing
+  fromNoteValue S.Tap      = Just Normal
+  fromNoteValue S.HoldHead = Just Freeze
+  fromNoteValue S.Tail     = Just Release
+  fromNoteValue S.RollHead = Nothing
+  fromNoteValue S.Mine     = Just Shock
+  fromNoteValue S.AutoKey  = Nothing
+  fromNoteValue S.Lift     = Nothing
+  fromNoteValue S.Fake     = Nothing
 
 prettyPrint :: DDR -> String
 prettyPrint = unlines . V.toList . V.map ppNote
