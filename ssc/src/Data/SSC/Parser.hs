@@ -11,11 +11,11 @@ import           RIO                     hiding ( many
 import qualified RIO.Text                      as T
 import qualified RIO.Vector                    as V
 import qualified RIO.HashMap                   as H
+import qualified RIO.List                      as List
 import           Text.Megaparsec
 import qualified Text.Megaparsec.Char          as C
 import qualified Text.Megaparsec.Char.Lexer    as L
 import           Data.List.Extra                ( split )
-
 import           Data.SSC.Types
 import           Data.Scientific
 
@@ -23,7 +23,7 @@ type Parser = Parsec SSCError Text
 
 type SSCError = Void
 
-type Tag = (Text, Text)
+type Tag = (Text, Text) -- | (Label, Content)
 
 decodeHelper :: Text -> Either (ParseErrorBundle Text SSCError) SSC
 decodeHelper input = runParser parseSSC "" input
@@ -37,9 +37,16 @@ parseSSC = between sc eof parseTags
 parseTags :: Parser SSC
 parseTags = do
   tags <- some parseTag
-  let (t : ts) = split isNoteData tags
-  SSC <$> parseHeader t <*> parseBody ts
-  where isNoteData = (== "NOTEDATA") . fst
+  if any isNoteData tags
+    then do
+      let (t : ts) = split isNoteData tags
+      SSC <$> parseHeader t <*> parseBodySSC ts
+    else do
+      let (t, ts) = List.span (not . isNotes) tags
+      SSC <$> parseHeader t <*> parseBodySM ts
+ where
+  isNoteData = (== "NOTEDATA") . fst
+  isNotes    = (== "NOTES") . fst
 
 parseHeader :: [Tag] -> Parser Header
 parseHeader tags =
@@ -85,13 +92,16 @@ parseHeader tags =
         (parseValue tags' "KEYSOUNDS" parseUnknown)
         (parseValue tags' "ATTACKS" parseUnknown)
 
-parseBody :: [[Tag]] -> Parser Body
-parseBody tags = V.fromList <$> mapM parseNoteData tags
+parseBodySSC :: [[Tag]] -> Parser Body
+parseBodySSC tags = V.fromList <$> mapM parseSSCStyle tags
 
-parseNoteData :: [Tag] -> Parser NoteData
-parseNoteData tags =
+parseBodySM :: [Tag] -> Parser Body
+parseBodySM tags = V.fromList <$> mapM parseSMStyle tags
+
+parseSSCStyle :: [Tag] -> Parser NoteData
+parseSSCStyle tags =
   let tags' = H.fromList tags
-  in  return $ NoteData (parseValue tags' "CHARTNAME" parseText)
+  in  return $ SSCStyle (parseValue tags' "CHARTNAME" parseText)
                         (parseValue tags' "STEPSTYPE" parseText)
                         (parseValue tags' "DESCRIPTION" parseText)
                         (parseValue tags' "CHARTSTYLE" parseText)
@@ -100,6 +110,28 @@ parseNoteData tags =
                         (parseValue tags' "RADARVALUES" parseVectorFloat)
                         (parseValue tags' "CREDIT" parseText)
                         (parseValue tags' "NOTES" parseNotes)
+
+parseSMStyle :: Tag -> Parser NoteData
+parseSMStyle tag = return $ fromMaybe def $ parseMaybe p $ snd tag
+ where
+  def = SMStyle Nothing Nothing Nothing Nothing Nothing Nothing
+  p =
+    SMStyle
+      <$> parseValueSM (parseTextBut ':') <* symbol ":"
+      <*> parseValueSM (parseTextBut ':') <* symbol ":"
+      <*> parseValueSM (parseTextBut ':') <* symbol ":"
+      <*> parseValueSM parseMeter <* symbol ":"
+      <*> parseValueSM parseVectorFloat <* symbol ":"
+      <*> parseValueSM parseNotes
+-- parseSMStyle value = case T.split (== ':') $ snd value of
+--   [stepstype', credit', difficulty', meter', radarvalues', notes'] ->
+--     return $ SMStyle (parseValueSM (parseTextBut ':') stepstype')
+--                      (parseValueSM (parseTextBut ':') credit')
+--                      (parseValueSM (parseTextBut ':') difficulty')
+--                      (parseValueSM parseMeter meter')
+--                      (parseValueSM parseVectorFloat radarvalues')
+--                      (parseValueSM parseNotes notes')
+--   _ -> return $ SMStyle Nothing Nothing Nothing Nothing Nothing Nothing
 
 parseTag :: Parser Tag
 parseTag = (,) <$ symbol "#" <*> key <*> value
@@ -112,10 +144,16 @@ parseValue tags text parser = case H.lookup text tags of
   Nothing    -> Nothing
   Just value -> parseMaybe parser value
 
+parseValueSM :: Parser a -> Parser (Maybe a)
+parseValueSM parser = Just <$ many C.spaceChar <*> parser
+
 -- | Specific Parsers
 
 parseText :: Parser Text
 parseText = T.pack <$> many anySingle
+
+parseTextBut :: Char -> Parser Text
+parseTextBut t = T.pack <$> many (anySingleBut t)
 
 parseFilePath :: Parser FilePath
 parseFilePath = many C.printChar

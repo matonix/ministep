@@ -4,7 +4,7 @@ module Data.SSC.Types where
 
 import           RIO
 
-data SSC = SSC 
+data SSC = SSC
   { header :: Header
   , body :: Body
   } deriving Show
@@ -26,7 +26,7 @@ type Timing a = Vector (Beat, a)
 -- type BGChanges = (FilePath, Binary, Binary, Binary)
 data TimeSignatures = TimeSignatures -- | numerator / denominator
   { numerator :: Int
-  , denominator :: Int 
+  , denominator :: Int
   } deriving Show
 type Unknown = Text
 
@@ -72,7 +72,7 @@ data Header = Header
   , attacks :: Maybe Unknown
   } deriving Show
 
-data NoteData = NoteData
+data NoteData = SSCStyle
   { chartname :: Maybe Text
   , stepstype :: Maybe Text
   , description :: Maybe Text
@@ -82,15 +82,15 @@ data NoteData = NoteData
   , radarvalues :: Maybe (Vector Float)
   , credit :: Maybe Text
   , notes :: Maybe Notes
+  }
+  | SMStyle
+  { stepstype :: Maybe Text
+  , credit :: Maybe Text
+  , difficulty :: Maybe Text
+  , meter :: Maybe Int
+  , radarvalues :: Maybe (Vector Float)
+  , notes :: Maybe Notes
   } deriving Show
-  -- | SMStyle
-  -- { stepstype :: Text
-  -- , credit :: Text
-  -- , difficulty :: Text
-  -- , meter :: Int
-  -- , radarvalues :: Vector Float
-  -- , notes :: Notes
-  -- }
 
 type Notes = Vector Measure
 

@@ -9,7 +9,7 @@ import Diagrams.Backend.SVG (renderSVG)
 import Diagrams.TwoD.Size (mkWidth)
 
 main :: IO ()
-main = writeSVG
+main = printDDR
 
 writeHs :: IO ()
 writeHs = do
@@ -19,7 +19,7 @@ writeHs = do
 
 printDDR :: IO ()
 printDDR = do
-  source <- readFileUtf8  "untracked/Springtime.ssc"
+  source <- readFileUtf8  "untracked/New Century.sm"
   let Right ssc = decode source
   let ddrs = fromSSC ssc
   let Just ddr = ddrs !? 0
@@ -27,7 +27,7 @@ printDDR = do
 
 writeSVG :: IO ()
 writeSVG = do
-  source <- readFileUtf8  "untracked/Springtime.ssc"
+  source <- readFileUtf8  "untracked/New Century.sm"
   let Right ssc = decode source
   let ddrs = fromSSC ssc
   let Just ddr = ddrs !? 0

@@ -12,18 +12,25 @@ import           Diagrams.Prelude        hiding ( union )
 import           Diagrams.Backend.SVG.CmdLine
 -- import Diagrams.TwoD.Path.Boolean
 
+data DDRConfig = DDRConfig {
+  dencity :: Int
+} deriving Show
+
+defaultDDRConfig :: DDRConfig
+defaultDDRConfig = DDRConfig 8
+
 ddrDiagram :: DDR -> Diagram B
-ddrDiagram = vcat . map noteDiagram . V.toList
+ddrDiagram = vcat . map (noteDiagram defaultDDRConfig) . V.toList
 
 -- TODO: bpm, stop is not implemented
-noteDiagram :: Note -> Diagram B
-noteDiagram (Note (AbsBeat m d n) e) =
-  extrudeBottom emptyNote . (|||) measureText $ case e of
+noteDiagram :: DDRConfig -> Note -> Diagram B
+noteDiagram (DDRConfig den) (Note (AbsBeat m d n) e) =
+  extrudeTop emptyNote .  (|||) measureText $ case e of
     Nothing -> strutY 1
     Just (Event arr _bpm _stop) ->
       maybe (strutY 1) (applyColor n d . arrowDiagram) arr
  where
-  emptyNote = -1 + (8 / fromIntegral d) :: Double
+  emptyNote = -1 + (fromIntegral den / fromIntegral d) :: Double
   measureText =
     (topLeftText (if n == 0 then show m else "") # fontSizeL 0.5)
       ||| strutX 1
