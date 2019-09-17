@@ -6,68 +6,128 @@
 
 module Data.DDR.SVG where
 
+import           RIO
 import           Data.DDR
+import qualified RIO.Map                       as Map
 import qualified RIO.Vector                    as V
-import           Diagrams.Prelude        hiding ( union )
+import           Diagrams.Prelude        hiding ( union
+                                                , arrow
+                                                )
 import           Diagrams.Backend.SVG.CmdLine
 -- import Diagrams.TwoD.Path.Boolean
 
-data DDRConfig = DDRConfig {
-  dencity :: Int
-} deriving Show
+type Pos = Point V2 Double
+type AbsDiagram = (Pos, Diagram B)
+data NoteAlign = Measure | Numerator | NoteSingle Double
+type FreezeMap = [Map AbsBeat AbsBeat]
+
+data DDRConfig = DDRConfig
+  { sparseX :: Double
+  , sparseY :: Double
+  } deriving Show
 
 defaultDDRConfig :: DDRConfig
-defaultDDRConfig = DDRConfig 8
+defaultDDRConfig = DDRConfig 1 8
 
 ddrDiagram :: DDR -> Diagram B
-ddrDiagram = vcat . map (noteDiagram defaultDDRConfig) . V.toList
+ddrDiagram ddr =
+  position . concatMap (noteDiagram defaultDDRConfig freezeMap) $ V.toList ddr
+ where
+  freezeMap = map toFreezeMap [left, down, up, right]
+  toFreezeMap :: (Arrow -> Maybe NoteType) -> Map AbsBeat AbsBeat
+  toFreezeMap dir = Map.fromList . reduce $ eachDirection dir
+  reduce :: [(AbsBeat, NoteType)] -> [(AbsBeat, AbsBeat)]
+  reduce = go [] Nothing
+   where
+    go acc _        []                  = acc
+    go acc Nothing  ((a, Freeze ) : xs) = go acc (Just a) xs
+    go acc (Just a) ((b, Release) : xs) = go ((a, b) : acc) Nothing xs
+    go acc x        (_            : xs) = go acc x xs
+  eachDirection :: (Arrow -> Maybe NoteType) -> [(AbsBeat, NoteType)]
+  eachDirection dir' =
+    [ (ab, nt) | (ab, Just nt) <- map (absBeat &&& pick) $ V.toList ddr ]
+    where pick x = event x >>= arrow >>= dir'
+
+mkPos :: DDRConfig -> AbsBeat -> NoteAlign -> Pos
+mkPos (DDRConfig sx sy) ab noteAlign = p2 (xPos sx noteAlign, yPos sy ab)
+
+-- | return y-axis positon and each measure has 1 height.
+yPos :: Double -> AbsBeat -> Double
+yPos sparse (AbsBeat m d n) =
+  -1 * sparse * (fromIntegral m + fromIntegral n / fromIntegral d)
+
+xPos :: Double -> NoteAlign -> Double
+xPos sparse Measure        = sparse * 0.5
+xPos sparse Numerator      = sparse * 1.5
+xPos sparse (NoteSingle i) = sparse * (2.5 + i)
 
 -- TODO: bpm, stop is not implemented
-noteDiagram :: DDRConfig -> Note -> Diagram B
-noteDiagram (DDRConfig den) (Note (AbsBeat m d n) e) =
-  extrudeTop emptyNote .  (|||) measureText $ case e of
-    Nothing -> strutY 1
-    Just (Event arr _bpm _stop) ->
-      maybe (strutY 1) (applyColor n d . arrowDiagram) arr
- where
-  emptyNote = -1 + (fromIntegral den / fromIntegral d) :: Double
-  measureText =
-    (topLeftText (if n == 0 then show m else "") # fontSizeL 0.5)
-      ||| strutX 1
-      ||| (topLeftText (show n) # fontSizeL 0.5)
-      ||| strutX 1
+noteDiagram :: DDRConfig -> FreezeMap -> Note -> [AbsDiagram]
+noteDiagram conf frmap (Note ab e) = -- TODO
+  measureText conf ab <> eventDiagram conf ab frmap e
+
+measureText :: DDRConfig -> AbsBeat -> [AbsDiagram]
+measureText conf ab@(AbsBeat m _d n) =
+  [ ( mkPos conf ab Measure
+    , text (if n == 0 then show m else "") # fontSizeL 0.5
+    )
+  , (mkPos conf ab Numerator, text (show n) # fontSizeL 0.5)
+  ]
+
+eventDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Maybe Event -> [AbsDiagram]
+eventDiagram _ _ _ Nothing = mempty
+eventDiagram conf ab frmap (Just (Event arr _bpm _stop)) =
+  maybe [] (arrowDiagram conf ab frmap) arr
 
 arrowDegs :: [Angle Double]
 arrowDegs = [180 @@ deg, 270 @@ deg, 90 @@ deg, 0 @@ deg]
 
-applyColor :: Int -> Int -> Diagram B -> Diagram B
-applyColor numer denom arr
+arrowDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Arrow -> [AbsDiagram]
+arrowDiagram conf@(DDRConfig sx sy) ab frmap (Single l d u r) =
+  arrows <> shockArrow <> freezeArrows
+ where
+  freezeArrows = catMaybes $ zipWith3 freezeArrow [0 ..] frmap [l, d, u, r]
+   where
+    freezeArrow x eachMap (Just Freeze) = Just
+      ( p2 (xPos sx (NoteSingle x), yPos sy ab - (h / 2))
+      , freezeArrowBase h # fc yellowgreen # lc yellowgreen
+      )
+     where
+      Just release = Map.lookup ab eachMap
+      h            = yPos sy ab - yPos sy release
+    freezeArrow _ _ _ = Nothing
+  shockArrow = case l of
+    (Just Shock) ->
+      [(mkPos conf ab (NoteSingle 1.5), shockArrowBase 4 # fc white # lc cyan)]
+    _ -> mempty
+  arrows = catMaybes $ zipWith3 f [0 ..] (cycle arrowDegs) [l, d, u, r]
+   where
+    f x ad nt = fmap (\nt' -> (pos x, dia ad nt')) nt
+    pos x = mkPos conf ab (NoteSingle x)
+    dia ad nt = rotate ad $ fromNoteType ab nt
+
+fromNoteType :: AbsBeat -> NoteType -> Diagram B
+fromNoteType ab Normal  = arrowBase # applyColor ab
+fromNoteType ab Freeze  = arrowBase # fc yellowgreen # applyColor ab
+fromNoteType _  Release = arrowBase # fc yellowgreen # lc yellowgreen
+fromNoteType ab Shock   = arrowBase # fc white # applyColor ab
+
+applyColor :: AbsBeat -> Diagram B -> Diagram B
+applyColor (AbsBeat _m denom numer) arr
   | numer * 4 `mod` denom == 0  = arr # fc pink # lc darkred
   | numer * 8 `mod` denom == 0  = arr # fc lightblue # lc indigo
   | numer * 16 `mod` denom == 0 = arr # fc yellow # lc darkgoldenrod
   | otherwise                   = arr # fc yellowgreen # lc green
 
-arrowDiagram :: Arrow -> Diagram B
-arrowDiagram (Single l d u r) = foldr1 (|||) $ zipWith
-  (\degree -> maybe (strutX 1) (rotate degree . fromNoteType))
-  arrowDegs
-  [l, d, u, r]
+freezeArrowBase :: Double -> Diagram B
+freezeArrowBase h = rect (1 - 1 / 2 / arrowWeight) (h - 1 / 2 / arrowWeight) # lwL (1 / 2 / arrowWeight) # frame
+  (1 / 4 / arrowWeight)
+  where arrowWeight = (4 * sqrt 2) + 1
 
--- TODO: freeze, release, shock is not implemented
-fromNoteType :: NoteType -> Diagram B
-fromNoteType Normal  = arrowBase
-fromNoteType Freeze  = arrowBase
-fromNoteType Release = arrowBase
-fromNoteType Shock   = arrowBase
-
-a :: Arrow
-a = Single Nothing (Just Normal) Nothing Nothing
-
-b :: Arrow
-b = Single (Just Normal) (Just Normal) Nothing (Just Normal)
-
-c :: Arrow
-c = Single (Just Normal) (Just Normal) (Just Normal) (Just Normal)
+shockArrowBase :: Double -> Diagram B
+shockArrowBase w = rect w 0.4 # lwG (1 / 2 / arrowWeight) # frame
+  (1 / 4 / arrowWeight)
+  where arrowWeight = (4 * sqrt 2) + 1
 
 arrowBase :: Diagram B
 arrowBase =
