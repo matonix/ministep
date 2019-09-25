@@ -14,9 +14,10 @@ import           Diagrams.Prelude        hiding ( arrow )
 import           Diagrams.Backend.SVG.CmdLine
 
 type Pos = Point V2 Double
-type AbsDiagram = (Pos, Diagram B)
+type AbsDiagrams = [(Pos, Diagram B)]
 data NoteAlign = Measure | Numerator | NoteSingle Double
 type FreezeMap = [Map AbsBeat AbsBeat]
+type Arrows = [Maybe NoteType]
 
 data DDRConfig = DDRConfig
   { sparseX :: Double
@@ -30,13 +31,11 @@ defaultDDRConfig = DDRConfig 1 8
 
 ddrDiagram :: DDR -> Diagram B
 ddrDiagram ddr = position
-  $ concatMap (noteDiagram defaultDDRConfig freezeMap) notes
- where
-  notes     = V.toList ddr
-  freezeMap = map (toFreezeMap notes) [left, down, up, right]
+  $ concatMap (noteDiagram defaultDDRConfig freezeMap) ddr
+  where freezeMap = map (toFreezeMap ddr) [left, down, up, right]
 
-toFreezeMap :: [Note] -> (Arrow -> Maybe NoteType) -> Map AbsBeat AbsBeat
-toFreezeMap notes = Map.fromList . mkFreezeReleasePair . eachDirection notes
+toFreezeMap :: DDR -> (Arrow -> Maybe NoteType) -> Map AbsBeat AbsBeat
+toFreezeMap ddr = Map.fromList . mkFreezeReleasePair . eachDirection ddr
 
 mkFreezeReleasePair :: [(AbsBeat, NoteType)] -> [(AbsBeat, AbsBeat)]
 mkFreezeReleasePair = go [] Nothing
@@ -46,18 +45,18 @@ mkFreezeReleasePair = go [] Nothing
   go acc (Just a) ((b, Release) : xs) = go ((a, b) : acc) Nothing xs
   go acc x        (_            : xs) = go acc x xs
 
-eachDirection :: [Note] -> (Arrow -> Maybe NoteType) -> [(AbsBeat, NoteType)]
-eachDirection notes dir' =
-  [ (ab, nt) | (ab, Just nt) <- map (absBeat &&& pick) notes ]
+eachDirection :: DDR -> (Arrow -> Maybe NoteType) -> [(AbsBeat, NoteType)]
+eachDirection ddr dir' =
+  [ (ab, nt) | (ab, Just nt) <- map (absBeat &&& pick) $ V.toList ddr ]
   where pick x = event x >>= arrow >>= dir'
 
 -- # Note Level Diagrams
 
-noteDiagram :: DDRConfig -> FreezeMap -> Note -> [AbsDiagram]
+noteDiagram :: DDRConfig -> FreezeMap -> Note -> AbsDiagrams
 noteDiagram conf frmap (Note ab e) = -- TODO
   measureText conf ab <> eventDiagram conf ab frmap e
 
-measureText :: DDRConfig -> AbsBeat -> [AbsDiagram]
+measureText :: DDRConfig -> AbsBeat -> AbsDiagrams
 measureText conf ab@(AbsBeat m _d n) =
   [ (mkPos conf ab Measure  , text (showOrEmpty n m) # fontSizeL 0.5)
   , (mkPos conf ab Numerator, text (show n) # fontSizeL 0.5)
@@ -66,23 +65,23 @@ measureText conf ab@(AbsBeat m _d n) =
   showOrEmpty 0 m' = show m'
   showOrEmpty _ _  = mempty
 
-eventDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Maybe Event -> [AbsDiagram]
+eventDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Maybe Event -> AbsDiagrams
 eventDiagram _ _ _ Nothing = mempty
 eventDiagram conf ab frmap (Just (Event arr _bpm _stop)) =
   maybe [] (arrowDiagram conf ab frmap) arr
 
 -- # Arrow Level Diagrams
 
-arrowDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Arrow -> [AbsDiagram]
+arrowDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Arrow -> AbsDiagrams
 arrowDiagram conf ab frmap arr =
-  normalArrows conf ab arrList
-    <> shockArrow conf ab arrList
-    <> freezeArrows conf ab frmap arrList
-  where arrList = panelToList arr
+  normalArrows conf ab as
+    <> shockArrow conf ab as
+    <> freezeArrows conf ab frmap as
+  where as = panelToList arr
 
-normalArrows :: DDRConfig -> AbsBeat -> [Maybe NoteType] -> [AbsDiagram]
-normalArrows conf ab arrList = catMaybes
-  $ zipWith3 normalArrow [0 ..] (cycle arrowDegs) arrList
+normalArrows :: DDRConfig -> AbsBeat -> Arrows -> AbsDiagrams
+normalArrows conf ab as = catMaybes
+  $ zipWith3 normalArrow [0 ..] (cycle arrowDegs) as
  where
   normalArrow x ad nt = do
     nt' <- nt
@@ -92,9 +91,9 @@ normalArrows conf ab arrList = catMaybes
 
 arrowDegs :: [Angle Double]
 arrowDegs = [180 @@ deg, 270 @@ deg, 90 @@ deg, 0 @@ deg]
-    
-shockArrow :: DDRConfig -> AbsBeat -> [Maybe NoteType] -> [AbsDiagram]
-shockArrow conf ab arrList = if any isJustShock arrList
+
+shockArrow :: DDRConfig -> AbsBeat -> Arrows -> AbsDiagrams
+shockArrow conf ab as = if any isJustShock as
   then pure (shockPosition, shockDiagram)
   else mempty
  where
@@ -103,10 +102,9 @@ shockArrow conf ab arrList = if any isJustShock arrList
   isJustShock (Just Shock) = True
   isJustShock _            = False
 
-freezeArrows
-  :: DDRConfig -> AbsBeat -> FreezeMap -> [Maybe NoteType] -> [AbsDiagram]
-freezeArrows (DDRConfig sx sy) ab frmap arrList = catMaybes
-  $ zipWith3 freezeArrow [0 ..] frmap arrList
+freezeArrows :: DDRConfig -> AbsBeat -> FreezeMap -> Arrows -> AbsDiagrams
+freezeArrows (DDRConfig sx sy) ab frmap as = catMaybes
+  $ zipWith3 freezeArrow [0 ..] frmap as
  where
   freezeArrow x eachMap nt = do
     nt' <- nt
