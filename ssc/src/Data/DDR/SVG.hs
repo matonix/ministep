@@ -17,7 +17,7 @@ type Pos = Point V2 Double
 type AbsDiagrams = [(Pos, Diagram B)]
 data NoteAlign = Measure | Numerator | NoteSingle Double
 type FreezeMap = [Map AbsBeat AbsBeat]
-type Arrows = [Maybe NoteType]
+type Arrows = [Arrow]
 
 data DDRConfig = DDRConfig
   { sparseX :: Double
@@ -29,12 +29,12 @@ defaultDDRConfig = DDRConfig 1 8
 
 -- # Diagrams
 
-ddrDiagram :: DDR -> Diagram B
+ddrDiagram :: DDR Arrow -> Diagram B
 ddrDiagram ddr = position
   $ concatMap (noteDiagram defaultDDRConfig freezeMap) ddr
   where freezeMap = map (toFreezeMap ddr) [left, down, up, right]
 
-toFreezeMap :: DDR -> (Arrow -> Maybe NoteType) -> Map AbsBeat AbsBeat
+toFreezeMap :: DDR Arrow -> (Panel Arrow -> Arrow) -> Map AbsBeat AbsBeat
 toFreezeMap ddr = Map.fromList . mkFreezeReleasePair . eachDirection ddr
 
 mkFreezeReleasePair :: [(AbsBeat, NoteType)] -> [(AbsBeat, AbsBeat)]
@@ -45,14 +45,14 @@ mkFreezeReleasePair = go [] Nothing
   go acc (Just a) ((b, Release) : xs) = go ((a, b) : acc) Nothing xs
   go acc x        (_            : xs) = go acc x xs
 
-eachDirection :: DDR -> (Arrow -> Maybe NoteType) -> [(AbsBeat, NoteType)]
+eachDirection :: DDR Arrow -> (Panel Arrow -> Arrow) -> [(AbsBeat, NoteType)]
 eachDirection ddr dir' =
   [ (ab, nt) | (ab, Just nt) <- map (absBeat &&& pick) $ V.toList ddr ]
   where pick x = event x >>= arrow >>= dir'
 
 -- # Note Level Diagrams
 
-noteDiagram :: DDRConfig -> FreezeMap -> Note -> AbsDiagrams
+noteDiagram :: DDRConfig -> FreezeMap -> Note Arrow -> AbsDiagrams
 noteDiagram conf frmap (Note ab e) = -- TODO
   measureText conf ab <> eventDiagram conf ab frmap e
 
@@ -65,14 +65,15 @@ measureText conf ab@(AbsBeat m _d n) =
   showOrEmpty 0 m' = show m'
   showOrEmpty _ _  = mempty
 
-eventDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Maybe Event -> AbsDiagrams
+eventDiagram
+  :: DDRConfig -> AbsBeat -> FreezeMap -> Maybe (Event Arrow) -> AbsDiagrams
 eventDiagram _ _ _ Nothing = mempty
 eventDiagram conf ab frmap (Just (Event arr _bpm _stop)) =
   maybe [] (arrowDiagram conf ab frmap) arr
 
 -- # Arrow Level Diagrams
 
-arrowDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Arrow -> AbsDiagrams
+arrowDiagram :: DDRConfig -> AbsBeat -> FreezeMap -> Panel Arrow -> AbsDiagrams
 arrowDiagram conf ab frmap arr =
   normalArrows conf ab as
     <> shockArrow conf ab as
@@ -175,9 +176,6 @@ arrowBase =
   where rt2 = sqrt 2
 
 -- # Helper Functions
-
-panelToList :: Panel a -> [a]
-panelToList (Single l u d r) = [l, u, d, r]
 
 mkPos :: DDRConfig -> AbsBeat -> NoteAlign -> Pos
 mkPos (DDRConfig sx sy) ab noteAlign = p2 (xPos sx noteAlign, yPos sy ab)
