@@ -1,0 +1,62 @@
+@require: stdjareport
+@require: code
+@require: itemize
+@require: tabular
+@require: proof
+@import: local
+
+document (|
+  title = {DDR足運びコスト最小化問題};
+  author = {maton};
+|) '<
+  +section{マルコフ決定過程としての足運び}<
+    +p{
+      \dfn{有限マルコフ決定過程（finite Markov decision process\; finite MDP)}は、
+      次の4要素${\angle-bracket{S, A, T, R}}を持つ。
+    }
+    +listing{
+      * ${S = \brace{s^1, s^2, \ldots, s^N}}: 状態の有限集合
+      * ${A = \brace{a^1, a^2, \ldots, a^K}}: 行動の有限集合
+      * ${T: S \times A \times S \rightarrow \sqbracket{0, 1}}: 遷移関数
+      * ${R: S \times A \times S \rightarrow \mathbb{R}}: 報酬関数
+    }
+    +p{
+      DDRにおける足運びはあくまで時空間的に連続的な運動であるが、
+      譜面のあるノーツを踏むという点で区切ることで、時間的に離散的に考えることが可能になる。
+      また、パネルのある1点を踏むと簡略化して考えることで、空間的にも離散的に扱うことができる。
+      足運びの基本単位を足配置とし、あるノーツを正確な位置で、正確なタイミングで踏むことを想定する。
+      このとき、足配置はMDPにおける状態${s \in S}、ある足配置から次の足配置に向けた移動を
+      行動${a \in A}とみなすことができる。
+      MDPにおける遷移関数${T}は次状態への確率的遷移を表すが、
+      行動${a}が足配置間の決定的な移動を表すため、
+      あらゆる${\paren{s, a, s'} \in S \times A \times S}において、遷移確率は${1}となる。
+      報酬関数${R}は、最大化問題において、良いアクションに対して高い報酬を与える関数となるため、
+      コスト最小化問題においてはコストをより低くするようなアクションに対して高い報酬を与える関数として定義する。
+    }
+  >
+  +section{コストの考え方}<
+    +p{
+      \figure?:(`fig:term_cost`){コストの構成要素}<
+        +pdf(1)(120mm)(`term_cost.pdf`);
+      >
+      DDRにおけるコストは、図\ref(`fig:term_cost`);で示すように次の3種類に大別することができる。
+    }
+    +listing{
+      * Interval Cost: ノーツの間隔から算出されるコスト。短ければ短いほどコストは高く、
+        一方で、ある一定以上の間隔が空いていればコストは下限値を取ると考えられる。
+      * Foot Cost: 足の選択から算出されるコスト。交互、スライド、同時といった選択肢によってコストが変化する。
+        基本的に交互で踏むとコストは低くなるが、ノーツ列によってはスライドを入れることで総コストを下げられるケースがある。
+      * Move Cost: 足の移動距離から算出されるコスト。長ければ長いほどコストが高い。
+        特殊なケースとして、全く移動しない場合がある。
+      * Rotation Cost: 体の向きから算出されるコスト。
+        正面を基準に、左右方向への振れ幅が大きければ大きいほどコストが高い。
+    }
+    +p{
+      \figure?:(`fig:centroid`){重心を用いたコストの考え方}<
+        +pdf(1)(150mm)(`centroid.pdf`);
+      >
+      図\ref(`fig:centroid`);で示すように
+    }
+    +clear-page{}
+  >
+>
