@@ -1,15 +1,19 @@
 module Main where
 
-import Lib
+import Proto
 import Data.Array
 import Data.Foldable
 
 main :: IO ()
-main = do
+main = runProto
+
+runProto :: IO ()
+runProto = do
   putSample [L]
   putSample [L, D, U, R]
   putSample [L, D, R, D, L]
   putSample [R, D, L, R, D, L]
+
 
 putSample :: [Panel] -> IO ()
 putSample ps = do

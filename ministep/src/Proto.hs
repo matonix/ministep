@@ -1,4 +1,5 @@
-module Lib where
+-- This Impl. is techfest7th version.
+module Proto where
 
 import Data.Function
 import Data.Array

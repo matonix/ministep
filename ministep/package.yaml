@@ -13,6 +13,8 @@ tests:
 copyright: Haruki Yokoyama
 maintainer: automatonix@gmail.com
 dependencies:
+- containers
+- transformers
 - base >= 4.7 && < 5
 - array
 - mtl
