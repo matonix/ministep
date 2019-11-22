@@ -13,6 +13,7 @@ tests:
 copyright: Haruki Yokoyama
 maintainer: automatonix@gmail.com
 dependencies:
+- microlens
 - containers
 - transformers
 - base >= 4.7 && < 5
