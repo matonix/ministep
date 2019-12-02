@@ -13,11 +13,12 @@ tests:
 copyright: Haruki Yokoyama
 maintainer: automatonix@gmail.com
 dependencies:
+- vector
+- array
 - microlens
 - containers
 - transformers
 - base >= 4.7 && < 5
-- array
 - mtl
 name: ministep
 version: 0.1.0.0

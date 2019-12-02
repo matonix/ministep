@@ -1,7 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
-{- HLINT ignore "Eta reduce" -}
 module Proto2 where
 
 import           Data.Traversable
@@ -10,6 +13,7 @@ import qualified Data.Map.Strict               as Map
 import           Data.Maybe
 import           Data.Foldable
 import           Data.Function
+import qualified Data.Vector                   as V
 
 -- # Input/Output related data/type
 
@@ -23,26 +27,33 @@ type Foots = [Foot]
 
 -- # Internally used data/type
 
-data Note = Note
-  { index :: Index
-  , panel :: Panel
-  } deriving (Show, Eq, Ord)
-type Notes = [Note]
+type Notes = V.Vector Panel
 
-type Index = Int
-type State = (Note, Foot)
+data FootPos = Weighted
+  { curr :: (Foot, Panel)
+  , prev :: (Foot, Panel)
+  } deriving (Show, Eq, Ord, Bounded, HasEnumAll)
+  -- Double (air) has not been implemented yet.
+
+instance (Bounded a, Bounded b, Enum a, Enum b) => Enum (a, b) where
+  fromEnum (x, y) = fromEnum x + (1 + fromEnum (maxBound @a)) * fromEnum y
+  toEnum n = -- buggy
+    let (y, x) = n `divMod` (1 + fromEnum (maxBound @a))
+    in  (toEnum x, toEnum y)
+
+instance Enum FootPos where
+  fromEnum (Weighted curr prev) = fromEnum (curr, prev)
+  toEnum n = let (x, y) = toEnum n in Weighted x y
+
+type Time = Int
+type State = (Time, FootPos)
 type Action = Foot
 type R = Double
-
-class Enum a => HasFromOne a where
-  fromOne :: [a]
-
-instance HasFromOne Index where
-  fromOne = [1 ..]
+type Pos = (R, R)
 
 class (Enum a, Bounded a) => HasEnumAll a where
   enumAll :: [a]
-  enumAll = [minBound..]
+  enumAll = [minBound..maxBound]
 
 class HasInitial a where
   initial :: a
@@ -52,6 +63,9 @@ instance HasInitial R where
 
 instance HasInitial Action where
   initial = FL
+
+instance HasInitial Time where
+  initial = 0
 
 -- # MDP related data/type
 
@@ -68,32 +82,53 @@ data MDP = MDP States Actions Transition Reward
 -- # User defined part
 
 solve :: Panels -> Foots
-solve panels = toFoots notes $ policyIteration θ γ $ toMDP notes
+solve panels = toFoots terminal $ policyIteration θ γ $ toMDP notes
  where
-  notes = zipWith Note [1 ..] panels
-  θ     = 0.001
-  γ     = 1
+  notes    = V.fromList panels
+  terminal = V.length notes
+  θ        = 0.001
+  γ        = 1
   toMDP :: Notes -> MDP
   toMDP notes = MDP states actions transition reward
    where
     -- enumerate all patterns
-    states  = notes × enumAll
+    states  = [0 .. terminal - 1] × enumAll
     actions = enumAll
-    -- if (s, a, s') is a valid triple, it gives 1.0
-    transition (note, foot) action (note', foot')
-      | succ (index note) == index note' && action == foot' = 1
-      | otherwise = 0
+    transition s a s' = if nextState s a == s' then 1 else 0
     -- reward is the reciprocal of cost
-    reward s _a s' = 1 / cost s s'
-  toFoots :: Notes -> Policy -> Foots
-  toFoots notes policy = init $ scanl f initial notes
-    where f foot note = policy Map.! (note, foot)
+    reward s a s' = 1 / cost s s'
 
+  -- get next state deterministically
+  nextState :: State -> Action -> State
+  nextState (time, footPos) action = (nextTime, newFootPos footPos action)
+   where
+    nextTime = succ time
+    nextNote = notes V.! nextTime
+    newFootPos (Weighted (f1, p1) (f2, p2)) a
+      | f1 == a = Weighted (f1, nextNote) (f2, p2)
+      | f1 /= a = Weighted (f2, nextNote) (f1, p1)
+
+  toFoots :: Time -> Policy -> Foots
+  toFoots terminal policy = go initialState
+   where
+    go s@(n, _) | n == terminal = []
+                | otherwise = let a = policy Map.! s in a : go (nextState s a)
+    initialState = (initial, Weighted (FL, L) (FR, R))
+
+getPos :: Panel -> Pos
+getPos L = (-1, 0)
+getPos D = (0, -1)
+getPos U = (0, 1)
+getPos R = (1, 0)
+
+-- TODO
 cost :: State -> State -> R
-cost (Note _ p, f) (Note _ p', f') = footCost f f'
+cost (n, Weighted (f1, p1) (f2, p2)) (n', Weighted (f1', p1') (f2', p2')) =
+  centroidW (getPos p1) (getPos p2)
+    `distance` centroidW (getPos p1') (getPos p2')
  where
-  footCost x y | x == y    = 2
-               | otherwise = 1
+  centroidW (x1, y1) (x2, y2) = ((2 * x1 + x2) / 3, (2 * y1 + y2) / 3)
+  distance (x1, x2) (y1, y2) = sqrt ((x1 - x2) ^ 2 + (y1 - y2) ^ 2)
 
 -- # Algorithm part
 
