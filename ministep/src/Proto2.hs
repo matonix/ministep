@@ -14,6 +14,7 @@ import           Data.Maybe
 import           Data.Foldable
 import           Data.Function
 import qualified Data.Vector                   as V
+import           Debug.Trace
 
 -- # Input/Output related data/type
 
@@ -84,7 +85,7 @@ data MDP = MDP States Actions Transition Reward
 solve :: Panels -> Foots
 solve panels = toFoots terminal $ policyIteration θ γ $ toMDP notes
  where
-  notes    = V.fromList panels
+  notes    = V.fromList $ L : panels -- add dummy notes
   terminal = V.length notes
   θ        = 0.001
   γ        = 1
@@ -111,8 +112,12 @@ solve panels = toFoots terminal $ policyIteration θ γ $ toMDP notes
   toFoots :: Time -> Policy -> Foots
   toFoots terminal policy = go initialState
    where
-    go s@(n, _) | n == terminal = []
-                | otherwise = let a = policy Map.! s in a : go (nextState s a)
+    go s@(n, _)
+      | n == terminal - 1 -- remove dummy action
+      = []
+      | otherwise
+      = let a = -- traceShow s $ 
+                policy Map.! s in a : go (nextState s a)
     initialState = (initial, Weighted (FL, L) (FR, R))
 
 getPos :: Panel -> Pos
@@ -121,7 +126,7 @@ getPos D = (0, -1)
 getPos U = (0, 1)
 getPos R = (1, 0)
 
--- TODO
+-- TODO: test cost function with small cases 
 cost :: State -> State -> R
 cost (n, Weighted (f1, p1) (f2, p2)) (n', Weighted (f1', p1') (f2', p2')) =
   centroidW (getPos p1) (getPos p2)

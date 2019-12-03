@@ -11,10 +11,12 @@ main = runProto2
 runProto2 :: IO ()
 runProto2 = do
   putSample2 [L]
+  putSample2 [L, R]
   putSample2 [L, D, U, R]
   putSample2 [L, D, R, D, L]
   putSample2 [R, D, L, R, D, L]
   putSample2 [R, D, L, R, U, L]
+  putSample2 [L, L, L, L, R, R, R, R]
 
 putSample2 :: [Panel] -> IO ()
 putSample2 ps = do
