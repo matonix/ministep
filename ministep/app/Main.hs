@@ -12,6 +12,7 @@ runProto2 :: IO ()
 runProto2 = do
   putSample2 [L]
   putSample2 [L, R]
+  putSample2 [L, D, R]
   putSample2 [L, D, U, R]
   putSample2 [L, D, R, D, L]
   putSample2 [R, D, L, R, D, L]

@@ -87,8 +87,8 @@ solve panels = toFoots terminal $ policyIteration θ γ $ toMDP notes
  where
   notes    = V.fromList $ L : panels -- add dummy notes
   terminal = V.length notes
-  θ        = 0.001
-  γ        = 1
+  θ        = 0.01
+  γ        = 0.9
   toMDP :: Notes -> MDP
   toMDP notes = MDP states actions transition reward
    where
@@ -96,8 +96,8 @@ solve panels = toFoots terminal $ policyIteration θ γ $ toMDP notes
     states  = [0 .. terminal - 1] × enumAll
     actions = enumAll
     transition s a s' = if nextState s a == s' then 1 else 0
-    -- reward is the reciprocal of cost
-    reward s a s' = 1 / cost s s'
+    -- reward is the 1 minus cost
+    reward s a s' = 1 - cost s s'
 
   -- get next state deterministically
   nextState :: State -> Action -> State
@@ -116,8 +116,9 @@ solve panels = toFoots terminal $ policyIteration θ γ $ toMDP notes
       | n == terminal - 1 -- remove dummy action
       = []
       | otherwise
-      = let a = -- traceShow s $ 
-                policy Map.! s in a : go (nextState s a)
+      = let a  = policy Map.! s
+            s' = nextState s a
+        in  traceShow (s, s', cost s s') $ a : go s'
     initialState = (initial, Weighted (FL, L) (FR, R))
 
 getPos :: Panel -> Pos
@@ -133,7 +134,7 @@ cost (n, Weighted (f1, p1) (f2, p2)) (n', Weighted (f1', p1') (f2', p2')) =
     `distance` centroidW (getPos p1') (getPos p2')
  where
   centroidW (x1, y1) (x2, y2) = ((2 * x1 + x2) / 3, (2 * y1 + y2) / 3)
-  distance (x1, x2) (y1, y2) = sqrt ((x1 - x2) ^ 2 + (y1 - y2) ^ 2)
+  distance (x1, y1) (x2, y2) = sqrt ((x1 - x2) ^ 2 + (y1 - y2) ^ 2)
 
 -- # Algorithm part
 
