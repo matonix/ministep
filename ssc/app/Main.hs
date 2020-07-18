@@ -1,7 +1,7 @@
 module Main where
 
 import Data.DDR
-import Data.DDR.SVG
+-- import Data.DDR.SVG
 import Data.SSC 
 import RIO
 import RIO.Vector
@@ -9,7 +9,7 @@ import Diagrams.Backend.SVG (renderSVG)
 import Diagrams.TwoD.Size (mkWidth)
 
 main :: IO ()
-main = writeSVG
+main = printDDR
 
 writeHs :: IO ()
 writeHs = do
@@ -25,10 +25,10 @@ printDDR = do
   let Just ddr = ddrs !? 4
   putStrLn $ prettyPrint ddr
 
-writeSVG :: IO ()
-writeSVG = do
-  source <- readFileUtf8  "untracked/NC.sm"
-  let Right ssc = decode source
-  let ddrs = fromSSC ssc
-  let Just ddr = ddrs !? 4
-  renderSVG "untracked/test.svg" (mkWidth 100) $ ddrDiagram ddr
+-- writeSVG :: IO ()
+-- writeSVG = do
+--   source <- readFileUtf8  "untracked/NC.sm"
+--   let Right ssc = decode source
+--   let ddrs = fromSSC ssc
+--   let Just ddr = ddrs !? 4
+--   renderSVG "untracked/test.svg" (mkWidth 100) $ ddrDiagram ddr

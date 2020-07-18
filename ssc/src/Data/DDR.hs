@@ -1,15 +1,24 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Data.DDR where
 
 import           Data.Ratio
 import qualified Data.SSC.Types                as S
 import           RIO                     hiding ( Arrow )
 import qualified RIO.Vector                    as V
+import qualified RIO.Vector.Partial            as V'
 
-type DDR a = Vector (Note a)
+data Notes = Notes
+ { mode :: Mode
+ , rep :: Rep
+ , notes :: Vector Note
+ } deriving Show
 
-data Note a = Note
+data Mode = Single | Double deriving Show
+data Rep = Arrow | Foot deriving Show
+
+data Note = Note
   { absBeat :: AbsBeat
-  , event :: Maybe (Event a)
+  , event :: Event
   } deriving Show
 
 -- If a measure has a 8th beat at last of the measure, 
@@ -26,64 +35,73 @@ instance Ord AbsBeat where
     GT -> GT
     EQ -> (n1 % d1) `compare` (n2 % d2)
 
-data Event a = Event
-  { arrow :: Maybe (Panel a)
+data Event = Event
+  { arrow :: Panel
   , changeBPM :: Maybe Float
   , stop :: Maybe MilliSecond
   } deriving Show
 
 type MilliSecond = Float
 
-data Panel a = Single
-  { left :: a
-  , down :: a
-  , up :: a
-  , right :: a
+data Panel = SinglePanel
+  { left :: Maybe NoteType
+  , down :: Maybe NoteType
+  , up :: Maybe NoteType
+  , right :: Maybe NoteType
+  } | DoublePanel
+  { left1p :: Maybe NoteType
+  , down1p :: Maybe NoteType
+  , up1p :: Maybe NoteType
+  , right1p :: Maybe NoteType
+  , left2p :: Maybe NoteType
+  , down2p :: Maybe NoteType
+  , up2p :: Maybe NoteType
+  , right2p :: Maybe NoteType
   } deriving Show
-
-type Arrow = Maybe NoteType
 
 data NoteType = Normal | Freeze | Release | Shock
   deriving Show
 
--- Helper
-
-panelFromList :: [a] -> Maybe (Panel a)
-panelFromList [l, d, u, r] = Just $ Single l d u r
-panelFromList _            = Nothing
-
-panelToList :: Panel a -> [a]
-panelToList (Single l d u r) = [l, d, u, r]
-
-panelFromVector :: Vector a -> Maybe (Panel a)
-panelFromVector = panelFromList . V.toList
-
 -- Transform Function
 
-fromSSC :: S.SSC -> Vector (DDR Arrow)
-fromSSC = V.map notesToDDR . V.mapMaybe S.notes . S.body
+fromSSC :: S.SSC -> Vector Notes
+fromSSC = V.mapMaybe constNotes . S.body
  where
-  notesToDDR :: S.Notes -> DDR Arrow
-  notesToDDR = consAbsBeat . V.map measureToEvents
+  constNotes noteData = do
+    mode' <- fmap fromStepstype $ S.stepstype noteData
+    rep' <- Just Arrow
+    notes' <- fmap fromNotes $ S.notes noteData
+    return $ Notes mode' rep' notes'
+
+  fromStepstype :: Text -> Mode
+  fromStepstype "dance-single" = Single
+  fromStepstype "dance-double" = Double
+  fromStepstype _ = error "no parse stepstype"
+
+  fromNotes :: S.Notes -> Vector Note
+  fromNotes = consAbsBeat . V.map measureToEvents
    where
-    consAbsBeat :: Vector (Vector (Maybe (Event Arrow))) -> DDR Arrow
+    consAbsBeat :: Vector (Vector Event) -> Vector Note
     consAbsBeat vvec = join . flip V.imap vvec $ \measure' vec' ->
       let denominator' = length vec'
       in  flip V.imap vec' $ \numerator' event' ->
             Note (AbsBeat measure' denominator' numerator') event'
 
-  -- Now we ignore BPM change and stop, we see arrows only
-  measureToEvents :: S.Measure -> Vector (Maybe (Event Arrow))
-  measureToEvents = V.map $ fmap arrowToEvent . fromBeatColumn
-    where arrowToEvent a = Event (Just a) Nothing Nothing
+  measureToEvents :: S.Measure -> Vector Event
+  measureToEvents = V.map $ arrowToEvent . beatColumnToPanel
+    where
+      -- Now we ignore BPM change and stop, we see arrows only
+      arrowToEvent a = Event a Nothing Nothing
 
-  fromBeatColumn :: S.BeatColumn -> Maybe (Panel Arrow)
-  fromBeatColumn =
-    maybe Nothing panelFromVector . anyJustOrNothing . V.map fromNoteValue
-   where
-    anyJustOrNothing :: Vector Arrow -> Maybe (Vector Arrow)
-    anyJustOrNothing v = if V.any isJust v then Just v else Nothing
+  beatColumnToPanel :: S.BeatColumn -> Panel
+  beatColumnToPanel =
+    panelFromVector . V.map fromNoteValue
 
+  panelFromVector :: Vector (Maybe NoteType) -> Panel
+  panelFromVector vec
+    | V.length vec == 4 = SinglePanel (vec V'.! 0) (vec V'.! 1) (vec V'.! 2) (vec V'.! 3)
+    | otherwise = error "invalid panel size"
+      
   fromNoteValue :: S.NoteValue -> Maybe NoteType
   fromNoteValue S.None     = Nothing
   fromNoteValue S.Tap      = Just Normal
@@ -97,8 +115,8 @@ fromSSC = V.map notesToDDR . V.mapMaybe S.notes . S.body
 
 -- # Pretty Printing 
 
-prettyPrint :: DDR Arrow -> String
-prettyPrint = unlines . V.toList . V.map ppNote
+prettyPrint :: Notes -> String
+prettyPrint = unlines . V.toList . V.map ppNote . notes
  where
   ppNote (Note (AbsBeat m d n) e) = concat
     [ show m
@@ -108,13 +126,13 @@ prettyPrint = unlines . V.toList . V.map ppNote
     , show n
     , "\t"
     , "|"
-    , maybe " " (ppNoteType "<") $ up =<< arrow =<< e
-    , maybe " " (ppNoteType "v") $ down =<< arrow =<< e
-    , maybe " " (ppNoteType "^") $ up =<< arrow =<< e
-    , maybe " " (ppNoteType ">") $ right =<< arrow =<< e
+    , maybe " " (ppNoteType "<") $ up $ arrow e
+    , maybe " " (ppNoteType "v") $ down $ arrow e
+    , maybe " " (ppNoteType "^") $ up $ arrow e
+    , maybe " " (ppNoteType ">") $ right $ arrow e
     , "|"
-    , maybe "" (\b -> "BPM=" ++ show b ++ ", ") $ changeBPM =<< e
-    , maybe "" (\s -> "stop=" ++ show s ++ ", ") $ stop =<< e
+    , maybe "" (\b -> "BPM=" ++ show b ++ ", ") $ changeBPM e
+    , maybe "" (\s -> "stop=" ++ show s ++ ", ") $ stop e
     ]
    where
     ppNoteType arr Normal  = arr
