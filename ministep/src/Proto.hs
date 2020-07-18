@@ -1,5 +1,5 @@
 -- This Impl. is techfest7th version.
-module Proto where
+module Proto () where
 
 import Data.Function
 import Data.Array

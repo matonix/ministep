@@ -8,6 +8,44 @@ import Data.Foldable
 main :: IO ()
 main = runProto2
 
+findParamProto2 =
+  mapM_ print $ flip filter params $ \p ->
+    flip all cases $ \(i, e) -> 
+      solveWith (0.01, 1) p i == e
+
+params = (,,,,) <$> ps <*> ps <*> ps <*> ps <*> ps
+  where
+    -- ps = [1]
+    ps = map (/5) [1..5]
+
+cases =
+  [ ( [L]
+    , [FL]
+    )
+  , ( [L, R]
+    , [FL, FR]
+    )
+  , ( [L, D, R]
+    , [FL, FR, FL]
+    )
+  , ( [L, D, U, R]
+    , [FL, FR, FL, FR]
+    )
+  , ( [L, D, R, D, L]
+    , [FL, FR, FL, FR, FL]
+    )
+  , ( [R, D, L, R, D, L]
+    , [FR, FL, FR, FR, FL, FR]
+    -- , [FL, FR, FL, FR, FL, FR]
+    )
+  , ( [R, D, L, R, U, L]
+    , [FR, FL, FR, FL, FR, FL]
+    )
+  , ( [L, L, L, L, R, R, R, R]
+    , [FL, FL, FL, FL, FR, FR, FR, FR]
+    )
+  ]
+
 runProto2 :: IO ()
 runProto2 = do
   putSample2 [L]
