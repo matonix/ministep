@@ -6,7 +6,7 @@
 
 module Data.DDR.SVG where
 
-import           RIO
+import           RIO                     hiding ( Arrow )
 import           Data.DDR
 import qualified RIO.Map                       as Map
 import qualified RIO.Vector                    as V

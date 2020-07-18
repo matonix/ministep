@@ -2,7 +2,7 @@ module Data.DDR where
 
 import           Data.Ratio
 import qualified Data.SSC.Types                as S
-import           RIO
+import           RIO                     hiding ( Arrow )
 import qualified RIO.Vector                    as V
 
 type DDR a = Vector (Note a)
