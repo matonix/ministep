@@ -1,82 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Data.DDR where
+module Data.DDR
+  ( fromSSC
+  , prettyPrint
+  )
+where
 
-import           Data.Ratio
-import qualified Data.SSC.Types                as S
 import           RIO                     hiding ( Arrow )
 import qualified RIO.Vector                    as V
 import qualified RIO.Vector.Partial            as V'
 
-data Notes = Notes
- { mode :: Mode
- , rep :: Rep
- , notes :: Vector Note
- } deriving Show
-
-data Mode = Single | Double deriving Show
-data Rep = Arrow | Foot deriving Show
-
-data Note = Note
-  { absBeat :: AbsBeat
-  , event :: Event
-  } deriving Show
-
--- If a measure has a 8th beat at last of the measure, 
--- denominator = 8 and numerater = 7 (0-indexed)
-data AbsBeat = AbsBeat
-  { measure :: Int
-  , denominator :: Int
-  , numerator :: Int
-  } deriving (Show, Eq)
-
-instance Ord AbsBeat where
-  AbsBeat m1 d1 n1 `compare` AbsBeat m2 d2 n2 = case m1 `compare` m2 of
-    LT -> LT
-    GT -> GT
-    EQ -> (n1 % d1) `compare` (n2 % d2)
-
-data Event = Event
-  { arrow :: Panel
-  , changeBPM :: Maybe Float
-  , stop :: Maybe MilliSecond
-  } deriving Show
-
-type MilliSecond = Float
-
-data Panel = SinglePanel
-  { left :: Maybe NoteType
-  , down :: Maybe NoteType
-  , up :: Maybe NoteType
-  , right :: Maybe NoteType
-  } | DoublePanel
-  { left1p :: Maybe NoteType
-  , down1p :: Maybe NoteType
-  , up1p :: Maybe NoteType
-  , right1p :: Maybe NoteType
-  , left2p :: Maybe NoteType
-  , down2p :: Maybe NoteType
-  , up2p :: Maybe NoteType
-  , right2p :: Maybe NoteType
-  } deriving Show
-
-data NoteType = Normal | Freeze | Release | Shock
-  deriving Show
-
--- Transform Function
+import qualified Data.SSC.Types                as S
+import           Data.DDR.Types
 
 fromSSC :: S.SSC -> Vector Notes
 fromSSC = V.mapMaybe constNotes . S.body
  where
   constNotes noteData = do
-    mode' <- fmap fromStepstype $ S.stepstype noteData
-    rep' <- Just Arrow
+    mode'  <- fmap fromStepstype $ S.stepstype noteData
+    rep'   <- Just Arrow
     notes' <- fmap fromNotes $ S.notes noteData
     return $ Notes mode' rep' notes'
 
   fromStepstype :: Text -> Mode
   fromStepstype "dance-single" = Single
   fromStepstype "dance-double" = Double
-  fromStepstype _ = error "no parse stepstype"
+  fromStepstype _              = error "no parse stepstype"
 
   fromNotes :: S.Notes -> Vector Note
   fromNotes = consAbsBeat . V.map measureToEvents
@@ -91,17 +39,27 @@ fromSSC = V.mapMaybe constNotes . S.body
   measureToEvents = V.map $ arrowToEvent . beatColumnToPanel
     where
       -- Now we ignore BPM change and stop, we see arrows only
-      arrowToEvent a = Event a Nothing Nothing
+          arrowToEvent a = Event a Nothing Nothing
 
   beatColumnToPanel :: S.BeatColumn -> Panel
-  beatColumnToPanel =
-    panelFromVector . V.map fromNoteValue
+  beatColumnToPanel = panelFromVector . V.map fromNoteValue
 
   panelFromVector :: Vector (Maybe NoteType) -> Panel
   panelFromVector vec
-    | V.length vec == 4 = SinglePanel (vec V'.! 0) (vec V'.! 1) (vec V'.! 2) (vec V'.! 3)
+    | V.length vec == 4 = SinglePanel (vec V'.! 0)
+                                      (vec V'.! 1)
+                                      (vec V'.! 2)
+                                      (vec V'.! 3)
+    | V.length vec == 8 = DoublePanel (vec V'.! 0)
+                                      (vec V'.! 1)
+                                      (vec V'.! 2)
+                                      (vec V'.! 3)
+                                      (vec V'.! 4)
+                                      (vec V'.! 5)
+                                      (vec V'.! 6)
+                                      (vec V'.! 7)
     | otherwise = error "invalid panel size"
-      
+
   fromNoteValue :: S.NoteValue -> Maybe NoteType
   fromNoteValue S.None     = Nothing
   fromNoteValue S.Tap      = Just Normal
@@ -126,10 +84,10 @@ prettyPrint = unlines . V.toList . V.map ppNote . notes
     , show n
     , "\t"
     , "|"
-    , maybe " " (ppNoteType "<") $ up $ arrow e
-    , maybe " " (ppNoteType "v") $ down $ arrow e
-    , maybe " " (ppNoteType "^") $ up $ arrow e
-    , maybe " " (ppNoteType ">") $ right $ arrow e
+    , maybe " " (ppNoteType "<") $ up $ panel e
+    , maybe " " (ppNoteType "v") $ down $ panel e
+    , maybe " " (ppNoteType "^") $ up $ panel e
+    , maybe " " (ppNoteType ">") $ right $ panel e
     , "|"
     , maybe "" (\b -> "BPM=" ++ show b ++ ", ") $ changeBPM e
     , maybe "" (\s -> "stop=" ++ show s ++ ", ") $ stop e

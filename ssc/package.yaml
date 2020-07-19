@@ -1,12 +1,3 @@
-library:
-  source-dirs: src
-tests:
-  ssc-test:
-    source-dirs: test
-    main: Spec.hs
-    dependencies:
-    - ssc
-    - hspec
 copyright: Haruki Yokoyama
 category: Web
 maintainer: automatonix@gmail.com
@@ -37,3 +28,12 @@ executables:
     main: Main.hs
     dependencies:
     - ssc
+library:
+  source-dirs: src
+tests:
+  ssc-test:
+    source-dirs: test
+    main: Spec.hs
+    dependencies:
+    - ssc
+    - hspec

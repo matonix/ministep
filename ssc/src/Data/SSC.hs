@@ -1,4 +1,7 @@
-module Data.SSC where
+module Data.SSC
+  ( decode
+  )
+where
 
 import           RIO                     hiding ( first )
 import           Text.Megaparsec
