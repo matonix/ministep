@@ -24,7 +24,7 @@ data DisplayBPM = Shuffle | Single Float | Range Float Float
   deriving Show
 type Timing a = Vector (Beat, a)
 -- type BGChanges = (FilePath, Binary, Binary, Binary)
-data TimeSignatures = TimeSignatures -- | numerator / denominator
+data TimeSignatures = TimeSignatures -- numerator / denominator
   { numerator :: Int
   , denominator :: Int
   } deriving Show

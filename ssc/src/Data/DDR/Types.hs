@@ -4,10 +4,10 @@ import           Data.Ratio
 import           RIO
 
 data Notes = Notes
- { mode :: Mode
- , rep :: Rep
- , notes :: Vector Note
- } deriving Show
+  { mode :: Mode
+  , rep :: Rep
+  , notes :: Vector Note
+  } deriving Show
 
 data Mode = Single | Double deriving Show
 data Rep = Arrow | Foot deriving Show
@@ -33,11 +33,12 @@ instance Ord AbsBeat where
 
 data Event = Event
   { panel :: Panel
-  , changeBPM :: Maybe Float
-  , stop :: Maybe MilliSecond
+  , changeBPM :: Maybe BPM
+  , stop :: Maybe Second
   } deriving Show
 
-type MilliSecond = Float
+type BPM = Float
+type Second = Float
 
 data Panel =
   SinglePanel

@@ -19,7 +19,7 @@ fromDDR (D.Notes mode _rep notes) =
 fromNotes :: D.Note -> Objects
 fromNotes (D.Note absBeat event) =
   let
-    -- TODO: changeBPM and stop
+    -- #TODO: changeBPM and stop
       D.Event panel _changeBPM _stop = event
       pos                            = fromAbsBeat absBeat
   in  fromPanel panel pos

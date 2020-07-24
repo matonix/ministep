@@ -23,7 +23,7 @@ type Parser = Parsec SSCError Text
 
 type SSCError = Void
 
-type Tag = (Text, Text) -- | (Label, Content)
+type Tag = (Text, Text) -- (Label, Content)
 
 decodeHelper :: Text -> Either (ParseErrorBundle Text SSCError) SSC
 decodeHelper input = runParser parseSSC "" input
