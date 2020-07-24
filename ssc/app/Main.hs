@@ -28,7 +28,7 @@ printDDR = do
 
 writeSVG :: IO ()
 writeSVG = do
-  source <- readFileUtf8  "untracked/NC.sm"
+  source <- readFileUtf8  "untracked/ptf.sm"
   let Right ssc = decode source
   let ddrs = fromSSC ssc
   let Just ddr = ddrs !? 8

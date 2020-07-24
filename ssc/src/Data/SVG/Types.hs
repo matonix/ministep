@@ -19,6 +19,16 @@ data Object =
   | ShockBar
     { xPos :: XPos
     , yPos :: YPos
+    }
+  | ChangeBPM
+    { yPos :: YPos
+    , width :: Width
+    , bpm :: BPM
+    }
+  | Stop
+    { yPos :: YPos
+    , width :: Width
+    , stop :: Second
     } deriving Eq
 
 -- Position is scaled by unit size (basically, we use eight beat as unit)
@@ -27,6 +37,9 @@ type YPos = Rational
 data Direction = L | D | U | R deriving Eq
 data NoteType = Normal | Freeze | Release | Shock deriving Eq
 type FreezeLength = Rational
+type BPM = String
+type Second = String
+type Width = Rational
 
 instance Ord NoteType where
   compare Normal  Normal  = EQ
@@ -59,3 +72,7 @@ instance Ord Object where
   compare ShockBar{}    Note{}        = LT
   compare ShockBar{}    FreezeBar{}   = LT
   compare a@ShockBar{}  b@ShockBar{}  = compare (yPos a) (yPos b)
+  compare ChangeBPM{} _ = LT
+  compare _ ChangeBPM{} = GT
+  compare Stop{} _ = LT
+  compare _ Stop{} = GT

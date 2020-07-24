@@ -136,7 +136,7 @@ parseSMStyle tag = return $ fromMaybe def $ parseMaybe p $ snd tag
 parseTag :: Parser Tag
 parseTag = (,) <$ symbol "#" <*> key <*> value
  where
-  key   = T.pack <$> someTill C.upperChar (symbol ":")
+  key   = T.toUpper . T.pack <$> someTill C.letterChar (symbol ":")
   value = T.pack <$> manyTill (anySingleBut ';') (symbol ";")
 
 parseValue :: HashMap Text Text -> Text -> Parser a -> Maybe a

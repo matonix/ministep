@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE MultiWayIf #-}
 -- To live view: use vscode SVG Viewer
@@ -11,6 +13,7 @@ import           Data.Ratio
 import           Diagrams.Prelude        hiding ( arrow
                                                 , direction
                                                 , Direction
+                                                , width
                                                 )
 import           Diagrams.Backend.SVG.CmdLine
 
@@ -35,7 +38,10 @@ objectDiagram conf Note {..} =
   (mkPos conf xPos yPos, arrowDiagram direction noteType yPos)
 objectDiagram conf FreezeBar {..} =
   (mkPos conf xPos yPos, freezeBarDiagram conf freezeLength)
-objectDiagram conf ShockBar {..} = (mkPos conf xPos yPos, shockBarDiagram conf)
+objectDiagram conf ShockBar {..} = (mkPos conf xPos yPos, shockBarDiagram conf yPos)
+objectDiagram conf ChangeBPM {..} = (mkPos conf (-3) yPos, changeBPMDiagram conf width bpm)
+objectDiagram conf Stop {..} = (mkPos conf (-3) yPos, stopDiagram conf width stop)
+
 
 mkPos :: DDRConfig -> Rational -> Rational -> Pos
 mkPos DDRConfig {..} xPos yPos =
@@ -77,9 +83,23 @@ freezeBarDiagram conf len =
     # fc yellowgreen
     # lc yellowgreen
 
-shockBarDiagram :: DDRConfig -> Diagram B
-shockBarDiagram conf =
-  shockArrowBase (fromRational $ sparseX conf * 4) # fc white # lc cyan
+shockBarDiagram :: DDRConfig -> YPos -> Diagram B
+shockBarDiagram conf yPos =
+  shockArrowBase (fromRational $ sparseX conf * 3) # colorArrow yPos
+
+changeBPMDiagram :: DDRConfig -> Width -> BPM -> Diagram B
+changeBPMDiagram conf wid bpm =
+  alignedText 0 0 bpm # fc red # fontSize (Diagrams.Prelude.local 0.6)
+  <> hruleLeft (fromRational $ sparseX conf * (wid + 2.5)) # lwL 0.1 # lc red
+
+stopDiagram :: DDRConfig -> Width -> BPM -> Diagram B
+stopDiagram conf wid bpm =
+  alignedText 0 1 bpm # fc gray # fontSize (Diagrams.Prelude.local 0.6)
+  <> hruleLeft (fromRational $ sparseX conf * (wid + 2.5)) # lwL 0.1 # lc gray
+
+
+hruleLeft :: (InSpace V2 n t, TrailLike t) => n -> t
+hruleLeft d = trailLike $ trailFromSegments [straight $ r2 (d, 0)] `at` p2 (0,0) 
 
 -- # Base Diagrams
 
