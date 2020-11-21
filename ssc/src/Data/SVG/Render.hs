@@ -23,15 +23,19 @@ type PosDiagram = (Pos, Diagram B)
 data DDRConfig = DDRConfig
   { sparseX :: Rational
   , sparseY :: Rational
+  , rowLength :: Rational
   } deriving Show
 
 defaultDDRConfig :: DDRConfig
-defaultDDRConfig = DDRConfig 1 8
+defaultDDRConfig = DDRConfig 1 8 8
 
 -- # Diagrams
 
 ddrDiagram :: Objects -> Diagram B
-ddrDiagram = position . map (objectDiagram defaultDDRConfig) . L.sortOn Down
+ddrDiagram = position . multiColumns defaultDDRConfig . map (objectDiagram defaultDDRConfig) . L.sortOn Down
+
+multiColumns :: DDRConfig -> [PosDiagram] -> [PosDiagram]
+multiColumns DDRConfig{..} = id
 
 objectDiagram :: DDRConfig -> Object -> PosDiagram
 objectDiagram conf Note {..} =
@@ -41,7 +45,6 @@ objectDiagram conf FreezeBar {..} =
 objectDiagram conf ShockBar {..} = (mkPos conf xPos yPos, shockBarDiagram conf yPos)
 objectDiagram conf ChangeBPM {..} = (mkPos conf (-3) yPos, changeBPMDiagram conf width bpm)
 objectDiagram conf Stop {..} = (mkPos conf (-3) yPos, stopDiagram conf width stop)
-
 
 mkPos :: DDRConfig -> Rational -> Rational -> Pos
 mkPos DDRConfig {..} xPos yPos =
