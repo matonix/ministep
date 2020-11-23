@@ -1,29 +1,33 @@
 module Data.DDR.Types where
 
-import           Data.Ratio
-import           RIO
+import Data.Ratio
+import RIO
 
 data Notes = Notes
-  { mode :: Mode
-  , rep :: Rep
-  , notes :: Vector Note
-  } deriving Show
+  { mode :: Mode,
+    rep :: Rep,
+    notes :: Vector Note
+  }
+  deriving (Show)
 
-data Mode = Single | Double deriving Show
-data Rep = Arrow | Foot deriving Show
+data Mode = Single | Double deriving (Show)
+
+data Rep = Arrow | Foot deriving (Show)
 
 data Note = Note
-  { absBeat :: AbsBeat
-  , event :: Event
-  } deriving Show
+  { absBeat :: AbsBeat,
+    event :: Event
+  }
+  deriving (Show)
 
--- If a measure has a 8th beat at last of the measure, 
+-- If a measure has a 8th beat at last of the measure,
 -- denominator = 8 and numerater = 7 (0-indexed)
 data AbsBeat = AbsBeat
-  { measure :: Int
-  , denominator :: Int
-  , numerator :: Int
-  } deriving (Show, Eq)
+  { measure :: Int,
+    denominator :: Int,
+    numerator :: Int
+  }
+  deriving (Show, Eq)
 
 instance Ord AbsBeat where
   AbsBeat m1 d1 n1 `compare` AbsBeat m2 d2 n2 = case m1 `compare` m2 of
@@ -31,32 +35,42 @@ instance Ord AbsBeat where
     GT -> GT
     EQ -> (n1 % d1) `compare` (n2 % d2)
 
-data Event = Event
-  { panel :: Panel
-  , changeBPM :: Maybe BPM
-  , stop :: Maybe Second
-  } deriving Show
+data Event
+  = ArrowEvent
+      { panel :: Panel NoteType,
+        changeBPM :: Maybe BPM,
+        stop :: Maybe Second
+      }
+  | FootEvent
+      { foot :: Panel Foot
+      }
+  deriving (Show)
 
 type BPM = Float
+
 type Second = Float
 
-data Panel =
-  SinglePanel
-    { left :: Maybe NoteType
-    , down :: Maybe NoteType
-    , up :: Maybe NoteType
-    , right :: Maybe NoteType
-    } 
+data Panel a
+  = SinglePanel
+      { left :: Maybe a,
+        down :: Maybe a,
+        up :: Maybe a,
+        right :: Maybe a
+      }
   | DoublePanel
-    { left1p :: Maybe NoteType
-    , down1p :: Maybe NoteType
-    , up1p :: Maybe NoteType
-    , right1p :: Maybe NoteType
-    , left2p :: Maybe NoteType
-    , down2p :: Maybe NoteType
-    , up2p :: Maybe NoteType
-    , right2p :: Maybe NoteType
-    } deriving Show
+      { left1p :: Maybe a,
+        down1p :: Maybe a,
+        up1p :: Maybe a,
+        right1p :: Maybe a,
+        left2p :: Maybe a,
+        down2p :: Maybe a,
+        up2p :: Maybe a,
+        right2p :: Maybe a
+      }
+  deriving (Show)
 
 data NoteType = Normal | Freeze | Release | Shock
-  deriving Show
+  deriving (Show)
+
+data Foot = FL | FR
+  deriving (Show)

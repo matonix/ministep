@@ -192,6 +192,10 @@ policyIteration γ θ mdp@(MDP states actions transition reward) = policyEvalLoo
   initialPolicy :: Policy
   initialPolicy = mkPolicy states (const initial)
 
+  mkValue = undefined
+  mkPolicy = undefined
+  initial = undefined
+
   policyEvalLoop :: Value -> Policy -> Policy
   policyEvalLoop value policy =
     let p xs ys = (< θ) . sum $ Map.unionWith (\x y -> abs (x - y)) xs ys

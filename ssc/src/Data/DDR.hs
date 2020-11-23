@@ -20,14 +20,14 @@ type EventTL = (Map Rational BPM, Map Rational Second)
 fromSSC :: S.SSC -> Vector Notes
 fromSSC ssc = V.mapMaybe constNotes $ S.body ssc
   where
-    bpms = fromMaybe M.empty . fmap fromTiming . S.bpms $ S.header ssc
-    stops = fromMaybe M.empty . fmap fromTiming . S.stops $ S.header ssc
+    bpms = maybe M.empty fromTiming . S.bpms $ S.header ssc
+    stops = maybe M.empty fromTiming . S.bpms $ S.header ssc
     events = (bpms, stops)
 
     constNotes noteData = do
-      mode' <- fmap fromStepstype $ S.stepstype noteData
+      mode' <- fromStepstype <$> S.stepstype noteData
       rep' <- Just Arrow
-      notes' <- fmap (fromNotes events) $ S.notes noteData
+      notes' <- fromNotes events <$> S.notes noteData
       return $ Notes mode' rep' notes'
 
 fromTiming :: S.Timing a -> Map Rational a
@@ -50,8 +50,8 @@ fromNotes events = attachEvents events . consAbsBeat . V.map measureToEvents
     attachEvents events' = V.map $ \(Note a e) -> Note a (updateEvent a e events')
       where
         updateEvent a e (bpms, stops) = 
-          e { changeBPM = bpms M.!? (toFourBeat a)
-            , stop = stops M.!? (toFourBeat a)
+          e { changeBPM = bpms M.!? toFourBeat a
+            , stop = stops M.!? toFourBeat a
             }
         toFourBeat :: AbsBeat -> Rational
         toFourBeat (AbsBeat m d n) = (fromIntegral m + fromIntegral n R.% fromIntegral d) * 4
@@ -61,12 +61,12 @@ measureToEvents = V.map $ arrowToEvent . beatColumnToPanel
   where
     -- Now it ignore BPM change and stop, it add arrows only
     -- The other events are added by attachEvents
-    arrowToEvent a = Event a Nothing Nothing
+    arrowToEvent a = ArrowEvent a Nothing Nothing
 
-beatColumnToPanel :: S.BeatColumn -> Panel
+beatColumnToPanel :: S.BeatColumn -> Panel NoteType
 beatColumnToPanel = panelFromVector . V.map fromNoteValue
 
-panelFromVector :: Vector (Maybe NoteType) -> Panel
+panelFromVector :: Vector (Maybe a) -> Panel a
 panelFromVector vec
   | V.length vec == 4 =
     SinglePanel
@@ -102,11 +102,11 @@ fromNoteValue S.Fake = Nothing
 reverseDDR :: Notes -> Notes
 reverseDDR (Notes m re n) = Notes m re (V.map reverse' n)
   where
-    reverse' (Note a (Event p c s)) = Note a (Event (reverse'' p) c s)
-      where
-        reverse'' (SinglePanel l d u r) = SinglePanel r u d l
-        reverse'' (DoublePanel l1 d1 u1 r1 l2 d2 u2 r2) =
-          DoublePanel r2 u2 d2 l2 r1 u1 d1 l1
+    reverse' (Note a (ArrowEvent p c s)) = Note a (ArrowEvent (rev p) c s)
+    reverse' (Note a (FootEvent f)) = Note a (FootEvent (rev f))
+    rev (SinglePanel l d u r) = SinglePanel r u d l
+    rev (DoublePanel l1 d1 u1 r1 l2 d2 u2 r2) =
+      DoublePanel r2 u2 d2 l2 r1 u1 d1 l1
 
 -- # Pretty Printing
 

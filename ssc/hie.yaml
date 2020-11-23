@@ -1,0 +1,8 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "ssc:lib"
+    - path: "./app"
+      component: "ssc:exe:ssc"
+    - path: "./test"
+      component: "ssc:test:ssc-test"
