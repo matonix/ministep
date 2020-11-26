@@ -18,6 +18,7 @@ import Diagrams.Prelude hiding
   )
 import RIO hiding (Arrow)
 import qualified RIO.List as L
+import qualified Diagrams.Backend.SVG as Diagrams
 
 type Pos = Point V2 Double
 
@@ -26,12 +27,23 @@ type PosDiagram = (Pos, Diagram B)
 data RenderConfig = RenderConfig
   { sparseX :: Rational,
     sparseY :: Rational,
-    rowLength :: Rational
+    rowLength :: Rational,
+    renderWidth :: Rational
   }
   deriving (Show)
 
 defaultRenderConfig :: RenderConfig
-defaultRenderConfig = RenderConfig 1 8 8
+defaultRenderConfig = RenderConfig 1 8 8 100
+
+-- # Render
+
+renderSVG :: FilePath -> RenderConfig -> Objects -> IO ()
+renderSVG filePath renderConfig@RenderConfig{..} objects = 
+  Diagrams.renderSVG filePath (mkWidth 100) $ ddrDiagram renderConfig objects
+
+renderSVGWithFoots :: FilePath -> RenderConfig -> Objects -> Objects -> IO ()
+renderSVGWithFoots filePath renderConfig@RenderConfig{..} notes foots = 
+  Diagrams.renderSVG filePath (mkWidth 100) $ ddrDiagram renderConfig foots `atop` ddrDiagram renderConfig notes
 
 -- # Diagrams
 

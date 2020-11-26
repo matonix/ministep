@@ -5,9 +5,6 @@ import Data.DDR.Foot.Example
 import Data.SSC
 import Data.SVG.DDR
 import Data.SVG.Render
-import Diagrams (atop)
-import Diagrams.Backend.SVG (renderSVG)
-import Diagrams.TwoD.Size (mkWidth)
 import RIO
 import RIO.Vector
 
@@ -34,8 +31,8 @@ writeSVG = do
   let Right ssc = decode source
   let ddrs = fromSSC ssc
   let Just ddr = ddrs !? 8
-  let svg = fromDDR ddr
-  renderSVG "untracked/test.svg" (mkWidth 100) $ ddrDiagram defaultRenderConfig svg
+  let notes = fromDDR ddr
+  renderSVG "untracked/test.svg" defaultRenderConfig notes
 
 writeSVGWithFoot :: IO ()
 writeSVGWithFoot = do
@@ -43,8 +40,7 @@ writeSVGWithFoot = do
   let Right ssc = decode source
   let ddrs = fromSSC ssc
   let Just ddr = ddrs !? 0
-  let svg = fromDDR ddr
-  let svgFoot = fromDDR $ example ddr
-  let renderConfig = RenderConfig 1 4 8
-  renderSVG "untracked/test.svg" (mkWidth 100) 
-    $ ddrDiagram renderConfig svgFoot `atop` ddrDiagram renderConfig svg
+  let notes = fromDDR ddr
+  let foots = fromDDR $ example ddr
+  let renderConfig = defaultRenderConfig {sparseX = 1}
+  renderSVGWithFoots "untracked/test.svg" renderConfig notes foots
